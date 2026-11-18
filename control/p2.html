@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>P2 · A slow sensor in the loop · ENCS4380 HW2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f2f5f8;--panel:#fff;--ink:#12263a;--mute:#5b6b7a;--rule:#cfd9e2;--y:#1f5fbf;--r:#c77700;--u:#1e8a5a;--s:#7a3fb0;--bad:#b3261e;--ok:#1e8a5a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+output,.val{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace}
+header{padding:18px 20px 14px;border-bottom:2px solid var(--ink);background:var(--panel)}
+header h1{margin:0;font-size:22px;font-weight:600}
+header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+main{display:grid;grid-template-columns:330px 1fr;gap:14px;padding:14px;max-width:1200px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:12px 14px;margin-bottom:14px}
+h2{margin:0 0 8px;font-size:14px;font-weight:600;padding-bottom:4px;border-bottom:1px solid var(--rule)}
+.row{display:grid;grid-template-columns:92px 1fr 52px;align-items:center;gap:8px;margin:5px 0;font-size:14px}
+.row output{text-align:right;font-size:13px}
+input[type=range]{width:100%;accent-color:var(--s)}
+select,button,textarea{font:inherit;padding:5px 8px;border:1px solid var(--rule);border-radius:3px;background:#fff;color:var(--ink)}
+button{cursor:pointer;background:var(--ink);color:#fff;border-color:var(--ink)}
+button.alt{background:#fff;color:var(--ink);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--y);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+canvas{width:100%;height:250px;display:block;border:1px solid var(--rule);background:#fff}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12.5px;color:var(--mute);margin:4px 0 0}
+.legend i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(max-width:560px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{border:1px solid var(--rule);border-left:4px solid var(--y);padding:6px 10px}
+.tile small{display:block;color:var(--mute);font-size:12px}
+.tile .val{font-size:19px;font-weight:500}
+.note{font-size:13px;color:var(--mute);margin:8px 0 0}
+.pass{color:var(--ok);font-weight:600}.fail{color:var(--bad);font-weight:600}
+svg text{font:12px "IBM Plex Mono",monospace;fill:var(--ink)}
+svg .s{stroke:var(--ink);stroke-width:1.6;fill:none}
+.chk li{margin:4px 0}.opts label{margin-right:14px}
+</style></head>
+<body>
+<header>
+<h1>P2 · A slow sensor in the loop</h1>
+<p>ENCS4380 Interfacing Techniques · Homework 2 · The controller only controls what the sensor reports · Owner: <em>write your name here</em></p>
+</header>
+<main>
+<div>
+<section><h2>Sensor in the feedback path</h2><div id="g-sen"></div>
+<p class="note">Sensor: ys' = (y − ys)/τs. With τs = 0 the sensor is ideal.</p>
+<div class="btns"><button class="alt" data-set="ts=0">Ideal τs=0</button><button class="alt" data-set="ts=0.5">Slow 0.5</button><button class="alt" data-set="ts=1">Slower 1.0</button></div>
+</section>
+<section><h2>Plant</h2>
+<div class="row"><label for="plant">Model</label><select id="plant"><option value="1">First order  K/(τs+1)</option><option value="2">Second order</option></select><span></span></div>
+<div id="g-p1"></div><div id="g-p2" hidden></div>
+</section>
+<section><h2>Controller</h2><div id="g-pid"></div>
+<div class="btns"><button class="alt" data-set="kp=9,ki=0,kd=0">P only</button><button class="alt" data-set="kp=9,ki=20,kd=0">PI (default)</button><button class="alt" data-set="kp=9,ki=20,kd=1">PID</button></div>
+</section>
+<section><h2>Setpoint, limit and window</h2><div id="g-loop"></div>
+<div class="row"><label for="T">Window</label><select id="T"><option>5</option><option selected>10</option><option>20</option></select><span>s</span></div>
+<label><input type="checkbox" id="aw" checked> Anti-windup</label>
+</section>
+</div>
+
+<div>
+<section><h2>Loop block diagram</h2>
+<svg viewBox="0 0 640 160" width="100%" role="img" aria-label="Block diagram: the sensor sits in the feedback path, the controller receives r minus the sensor output ys">
+<defs><marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#12263a"/></marker></defs>
+<text x="4" y="50">r</text><path class="s" d="M16 55H56" marker-end="url(#a)"/>
+<circle class="s" cx="70" cy="55" r="14"/><text x="62" y="52" style="font-size:11px">+</text><text x="75" y="75" style="font-size:12px">−</text>
+<path class="s" d="M84 55H116" marker-end="url(#a)"/><text x="94" y="45">e</text>
+<rect class="s" x="118" y="32" width="100" height="46"/><text x="132" y="52">PID</text><text x="132" y="68" style="font-size:10px">+ limit</text>
+<path class="s" d="M218 55H256" marker-end="url(#a)"/><text x="228" y="45">u</text>
+<rect class="s" x="258" y="32" width="100" height="46"/><text x="272" y="52">Plant</text><text x="272" y="68" style="font-size:10px">true output y</text>
+<path class="s" d="M358 55H470" marker-end="url(#a)"/><text x="474" y="59">y</text>
+<path class="s" d="M410 55V112H360" marker-end="url(#a)"/>
+<rect class="s" x="228" y="94" width="130" height="36" style="stroke:#7a3fb0"/><text x="238" y="109" style="fill:#7a3fb0">Sensor 1/(τs·s+1)</text><text x="238" y="123" style="font-size:10px">slow measurement</text>
+<path class="s" d="M228 112H70V70" marker-end="url(#a)" style="stroke:#7a3fb0"/><text x="110" y="106" style="fill:#7a3fb0">ys (what the controller sees)</text>
+</svg></section>
+
+<section><h2>True output vs what the sensor reports</h2>
+<canvas id="c1"></canvas>
+<div class="legend"><span><i style="border-color:var(--y)"></i>true output y</span><span><i style="border-color:var(--s)"></i>sensor ys</span><span><i style="border-color:var(--r);border-top-style:dashed"></i>setpoint r</span></div>
+<h2 style="margin-top:14px">Control signal u</h2>
+<canvas id="c2" style="height:180px"></canvas>
+</section>
+
+<section><h2>Overshoot as the sensor gets slower</h2>
+<canvas id="c3" style="height:220px"></canvas>
+<div class="legend"><span><i style="border-color:var(--y)"></i>overshoot of true y (%), capped at 100</span><span><span style="color:var(--bad)">●</span> loop never settles</span><span><i style="border-color:var(--s);border-top-style:dashed"></i>current τs</span></div>
+<p class="note">Computed live with your current plant and gains: 41 simulations, τs from 0 to 2 s.</p>
+</section>
+
+<section><h2>Live metrics (true output y)</h2><div class="tiles" id="tiles"></div><p class="note" id="mnote"></p></section>
+
+<section><h2>Predict, then check</h2>
+<select id="pq"></select>
+<div class="opts" style="margin:8px 0"><label><input type="radio" name="pp" value="up"> increases</label><label><input type="radio" name="pp" value="down"> decreases</label><label><input type="radio" name="pp" value="same"> about the same</label></div>
+<textarea id="why" rows="2" style="width:100%" placeholder="Why do you think so? (one sentence)"></textarea>
+<div class="btns"><button id="chk">Check my prediction</button></div>
+<p id="pres" style="margin:8px 0 0"></p>
+</section>
+
+<section><h2>Validation checks</h2>
+<ul class="chk" id="val" style="padding-left:18px;margin:0"></ul>
+<div class="btns"><button class="alt" id="rerun">Run checks again</button></div>
+</section>
+</div>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const CFG={
+ sen:[['ts','Sensor τs (s)',0,2,.01,.3]],
+ p1:[['K','K (gain)',.5,5,.1,1],['tau','τ (s)',.1,5,.1,1]],
+ p2:[['K2','K (gain)',.5,5,.1,1],['wn','ωn (rad/s)',.5,20,.1,4],['zp','ζ plant',.05,2,.05,.3]],
+ pid:[['kp','Kp',0,20,.1,9],['ki','Ki',0,30,.1,20],['kd','Kd',0,5,.05,0]],
+ loop:[['r','Setpoint',.1,5,.1,1],['umax','u max',1,200,1,100],['umin','u min',-100,0,1,0]]};
+for(const g in CFG)$('#g-'+g).innerHTML=CFG[g].map(c=>`<div class="row"><label for="${c[0]}">${c[1]}</label><input type="range" id="${c[0]}" min="${c[2]}" max="${c[3]}" step="${c[4]}" value="${c[5]}"><output id="o${c[0]}"></output></div>`).join('');
+function read(){const v={};for(const g in CFG)CFG[g].forEach(c=>v[c[0]]=+$('#'+c[0]).value);
+ v.plant=$('#plant').value;v.T=+$('#T').value;v.aw=$('#aw').checked;return v}
+
+/* Closed loop with sensor: the PID sees e = r - ys, never the true y. RK4, dt = 1 ms */
+function sim(p){
+ const dt=.001,n=Math.round(p.T/dt),K=p.plant=='1'?p.K:p.K2,Tf=.01,ts=p.ts;
+ const f=(x,u)=>[p.plant=='1'?(K*u-x[0])/p.tau:x[1],p.plant=='1'?0:p.wn*p.wn*(K*u-x[0])-2*p.zp*p.wn*x[1],ts>0?(x[0]-x[2])/ts:0];
+ const y=new Float32Array(n),ya=new Float32Array(n),u=new Float32Array(n),ur=new Float32Array(n);
+ let x=[0,0,0],I=0,d=0,ep=0,len=n,bad=false;
+ const ad=(x,k,h)=>[x[0]+h*k[0],x[1]+h*k[1],x[2]+h*k[2]];
+ for(let i=0;i<n;i++){
+  const e=p.r-x[2];
+  d=(Tf*d+p.kd*(e-ep))/(Tf+dt);
+  const In=I+e*dt,raw=p.kp*e+p.ki*In+d,us=Math.min(p.umax,Math.max(p.umin,raw));
+  if(!(p.aw&&raw!==us&&e*(raw-us)>0))I=In;
+  y[i]=x[0];ya[i]=x[2];u[i]=us;ur[i]=raw;
+  const k1=f(x,us),k2=f(ad(x,k1,dt/2),us),k3=f(ad(x,k2,dt/2),us),k4=f(ad(x,k3,dt),us);
+  x=[0,1,2].map(j=>x[j]+dt/6*(k1[j]+2*k2[j]+2*k3[j]+k4[j]));
+  if(ts==0)x[2]=x[0];
+  ep=e;
+  if(!isFinite(x[0])||Math.abs(x[0])>1e3*p.r){len=i+1;bad=true;break}
+ }
+ const c=a=>a.subarray(0,len);
+ return{y:c(y),ya:c(ya),u:c(u),ur:c(ur),len,dt,bad};
+}
+function metrics(s,r){
+ const {y,u,ur,len:n,dt}=s,yf=y[n-1],m={bad:s.bad};
+ let ym=-1e9,up=-1e9,gap=0,lo=1e9,hi=-1e9;
+ for(let i=0;i<n;i++){ym=Math.max(ym,y[i]);up=Math.max(up,u[i]);gap=Math.max(gap,Math.abs(y[i]-s.ya[i]));
+  if(i>n*.8){lo=Math.min(lo,y[i]);hi=Math.max(hi,y[i])}}
+ m.ess=(r-yf)/r*100;m.up=up;m.gap=gap;m.peak=(ym-r)/r*100;m.ripple=(hi-lo)/r;
+ m.os=yf>.01*r?Math.max(0,(ym-yf)/yf*100):0;
+ m.rise=null;m.settle=null;
+ if(yf>.01*r){
+  const a=y.findIndex(v=>v>=.1*yf),b=y.findIndex(v=>v>=.9*yf);
+  if(a>=0&&b>=0)m.rise=(b-a)*dt;
+  let k=n-1;while(k>=0&&Math.abs(y[k]-yf)<=.02*Math.abs(yf))k--;
+  if(k<n*.95)m.settle=(k+1)*dt;
+ }
+ m.state=m.bad?'Unstable':(m.settle==null&&m.ripple>.05)?'Oscillating':m.settle==null?'Slow':'Settled';
+ return m;
+}
+
+function nice(a,b,n){const s=(b-a)/n,p=Math.pow(10,Math.floor(Math.log10(s))),q=s/p,st=(q<1.5?1:q<3.5?2:q<7.5?5:10)*p,o=[];for(let v=Math.ceil(a/st)*st;v<=b+1e-9;v+=st)o.push(+v.toFixed(10));return o}
+function plot(cv,T,ymin,ymax,series,hl,xl){
+ const dpr=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
+ const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+ const L=46,R=10,Tp=10,B=26,pw=W-L-R,ph=H-Tp-B,X=t=>L+t/T*pw,Y=v=>Tp+ph-(v-ymin)/(ymax-ymin)*ph;
+ g.font='11px "IBM Plex Mono",monospace';g.fillStyle='#5b6b7a';g.strokeStyle='#e3eaf0';g.lineWidth=1;
+ nice(0,T,6).forEach(t=>{g.beginPath();g.moveTo(X(t),Tp);g.lineTo(X(t),Tp+ph);g.stroke();g.textAlign='center';g.fillText(t,X(t),H-9)});
+ nice(ymin,ymax,5).forEach(v=>{g.beginPath();g.moveTo(L,Y(v));g.lineTo(L+pw,Y(v));g.stroke();g.textAlign='right';g.fillText(+v.toFixed(2),L-5,Y(v)+4)});
+ g.textAlign='right';g.fillText(xl||'t (s)',W-R,H-9);
+ g.strokeStyle='#12263a';g.strokeRect(L,Tp,pw,ph);
+ g.save();g.beginPath();g.rect(L,Tp,pw,ph);g.clip();
+ hl.forEach(h=>{g.strokeStyle=h.c;g.lineWidth=1.5;g.setLineDash(h.d||[]);g.beginPath();g.moveTo(L,Y(h.v));g.lineTo(L+pw,Y(h.v));g.stroke()});
+ series.forEach(s=>{g.strokeStyle=s.c;g.lineWidth=s.w||2;g.setLineDash(s.d||[]);g.beginPath();const st=Math.max(1,Math.floor(s.a.length/(pw*2)));
+  for(let i=0;i<s.a.length;i+=st){const px=X(i*s.dt),py=Y(s.a[i]);i?g.lineTo(px,py):g.moveTo(px,py)}g.stroke()});
+ g.restore();return{g,X,Y,Tp,ph};
+}
+
+const fmt=(v,u,d=2)=>v==null?'—':v.toFixed(d)+' '+u;
+function run(){
+ const p=read();
+ for(const g in CFG)CFG[g].forEach(c=>$('#o'+c[0]).textContent=(+$('#'+c[0]).value).toFixed(c[4]<.1?2:1));
+ $('#g-p1').hidden=p.plant!='1';$('#g-p2').hidden=p.plant!='2';
+ const s=sim(p),m=metrics(s,p.r);
+ const mx=Math.min(Math.max(...s.y,...s.ya),5*p.r),mn=Math.max(Math.min(...s.y,...s.ya),-2*p.r);
+ plot($('#c1'),p.T,Math.min(0,mn)-.05*p.r,Math.max(1.2*p.r,mx*1.05),
+  [{a:s.y,dt:s.dt,c:'#1f5fbf'},{a:s.ya,dt:s.dt,c:'#7a3fb0',w:1.6,d:[5,3]}],[{v:p.r,c:'#c77700',d:[6,4]}]);
+ const span=p.umax-p.umin;
+ plot($('#c2'),p.T,p.umin-.08*span,p.umax+.08*span,[{a:s.u,dt:s.dt,c:'#1e8a5a'}],[{v:p.umax,c:'#b3261e',d:[6,4]},{v:p.umin,c:'#b3261e',d:[6,4]}]);
+ /* sweep of overshoot vs sensor tau */
+ const pts=[],bad=[];
+ for(let i=0;i<=40;i++){const q={...p,ts:i*.05,T:8},mm=metrics(sim(q),p.r);
+  const unsettled=mm.settle==null;bad.push(unsettled);
+  pts.push(mm.bad?100:Math.min(100,unsettled?Math.max(mm.os,mm.peak):mm.os))}
+ const P=plot($('#c3'),2,-4,108,[{a:pts,dt:.05,c:'#1f5fbf'}],[{v:0,c:'#cfd9e2'}],'τs (s)');
+ pts.forEach((v,i)=>{if(bad[i]){P.g.fillStyle='#b3261e';P.g.beginPath();P.g.arc(P.X(i*.05),P.Y(v),3.5,0,7);P.g.fill()}});
+ P.g.strokeStyle='#7a3fb0';P.g.setLineDash([5,4]);P.g.beginPath();P.g.moveTo(P.X(p.ts),P.Tp);P.g.lineTo(P.X(p.ts),P.Tp+P.ph);P.g.stroke();
+ const T=(l,v,c)=>`<div class="tile" ${c?`style="border-left-color:${c}"`:''}><small>${l}</small><span class="val">${v}</span></div>`;
+ const col={Settled:'#1e8a5a',Slow:'#c77700',Oscillating:'#c77700',Unstable:'#b3261e'}[m.state];
+ let h=T('Loop status',m.state,col);
+ if(m.bad)h+=T('Rise time','—')+T('Overshoot','—')+T('Settling time','—');
+ else h+=T('Rise time (10–90%)',fmt(m.rise,'s',3))+T('Overshoot',fmt(m.os,'%',1))+T('Settling time (2%)',m.settle==null?'not settled':fmt(m.settle,'s',2));
+ h+=T('Steady-state error',m.bad?'—':fmt(m.ess,'%',1))+T('Max gap |y − ys|',m.gap.toFixed(3))+T('Peak u',fmt(m.up,'')+' / '+p.umax,m.up>=p.umax-1e-6?'#b3261e':'#1e8a5a');
+ $('#tiles').innerHTML=h;
+ $('#mnote').textContent=m.state=='Settled'||m.state=='Slow'?'':'The controller reacts to ys, which lags behind y, so it keeps pushing after y has already arrived. Check τs before blaming the gains.';
+}
+
+/* Predict, then check */
+const SC=[
+ ['Double the sensor τs: the overshoot will…','ts',v=>v?v*2:.3,'os'],
+ ['Double the sensor τs: the settling time will…','ts',v=>v?v*2:.3,'settle'],
+ ['Replace the sensor by an ideal one (τs = 0): the overshoot will…','ts',()=>0,'os'],
+ ['Double Kp with this sensor: the overshoot will…','kp',v=>v?v*2:1,'os'],
+ ['Double Ki with this sensor: the overshoot will…','ki',v=>v?v*2:2,'os'],
+ ['Double Kd with this sensor: the overshoot will…','kd',v=>v?v*2:.5,'os']];
+$('#pq').innerHTML=SC.map((s,i)=>`<option value="${i}">${s[0]}</option>`).join('');
+$('#chk').onclick=()=>{
+ const pick=document.querySelector('input[name=pp]:checked');if(!pick){$('#pres').textContent='Pick a prediction first.';return}
+ const [,k,f,met]=SC[+$('#pq').value],p=read(),q={...p};q[k]=f(p[k]);
+ const val=o=>{const m=metrics(sim(o),o.r);if(m.bad)return Infinity;const v=m[met];return v==null?Infinity:v};
+ const a=val(p),b=val(q),pct=met=='os';
+ let res='same';
+ if(a!==b){const dlt=Math.abs(b-a);if(!(pct?dlt<.5:dlt/Math.max(Math.abs(a),1e-9)<.05))res=b>a?'up':'down'}
+ const w={up:'increased',down:'decreased',same:'stayed about the same'}[res],nm=v=>v==Infinity?'never settles':v.toFixed(2);
+ $('#pres').innerHTML=(pick.value==res?'<span class="pass">Correct.</span> ':'<span class="fail">Not quite.</span> ')+`With ${k} = ${(+p[k]).toFixed(2)} → ${(+q[k]).toFixed(2)} it ${w} (${nm(a)} → ${nm(b)}). Compare with what you wrote and explain it.`;
+};
+
+/* Validation checks (K = 1, tau = 1) */
+function validate(){
+ const base={plant:'1',K:1,tau:1,r:1,umax:1e9,umin:-1e9,aw:false,kd:0},L=[];
+ const add=(ok,t)=>L.push(`<li><span class="${ok?'pass':'fail'}">${ok?'PASS':'FAIL'}</span> ${t}</li>`);
+ let m=metrics(sim({...base,kp:9,ki:0,ts:0,T:3}),1);
+ add(Math.abs(m.ess-10)<.3,`Ideal sensor (τs=0), P only, Kp=9: error = ${m.ess.toFixed(2)} % (matches P1, expected 10)`);
+ const os=[0,.3,.6,1].map(t=>metrics(sim({...base,kp:9,ki:0,ts:t,T:10}),1).os);
+ add(os.every((v,i)=>i==0||v>os[i-1]),`P only, Kp=9: overshoot grows with τs → ${os.map(v=>v.toFixed(1)+'%').join(', ')} for τs = 0, 0.3, 0.6, 1.0`);
+ const a=metrics(sim({...base,kp:9,ki:20,ts:1,T:20}),1),b=metrics(sim({...base,kp:9,ki:20,ts:1.4,T:20}),1);
+ add(a.ripple>.05&&b.state!='Settled',`PI, Kp=9, Ki=20: the loop is marginal at τs = 1 (Routh: 2·10 = 20) and beyond it never settles (τs=1.4: ${b.state})`);
+ $('#val').innerHTML=L.join('');
+}
+
+document.querySelectorAll('input[type=range],select,#aw').forEach(e=>e.addEventListener('input',run));
+document.querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{b.dataset.set.split(',').forEach(kv=>{const [k,v]=kv.split('=');$('#'+k).value=v});run()});
+$('#rerun').onclick=validate;addEventListener('resize',run);
+run();validate();
+</script>
+</body></html>
