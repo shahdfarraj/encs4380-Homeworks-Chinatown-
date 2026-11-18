@@ -1,4 +1,5 @@
 # encs4380-dynamics--Chinatown-
+
 # ENCS4380 Homework 1: Dynamic Characteristics Toolkit
 
 **Live site:** https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/
@@ -143,6 +144,62 @@ Related issue: #4
 
 Pull Request: #5
 
+---
+
+# ENCS4380 Homework 2: PID Control Toolkit
+
+**Control section:** https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p1.html
+
+## What is this?
+Homework 1 showed how slow a system is. Homework 2 shows how to make it faster and more accurate with feedback.
+We added a "Control" section to the site with two modules. It runs in the browser only and needs no server.
+The closed loop is simulated step by step in time with RK4, so it works for every gain setting.
+
+## Who built what (Homework 2)
+
+| Member | Module | Status |
+|---|---|---|
+| Shahd Farraj | P1: PID playground | Done |
+| Shahd Farraj | P2: A slow sensor in the loop | Done |
+
+## P1: PID playground
+Pages: `control/p1.html`
+
+You can:
+- Choose a first-order plant K/(tau s + 1) or a second-order plant, and change Kp, Ki, Kd and the setpoint step.
+- See the block diagram of the loop.
+- See the output against the setpoint, and the control signal u with its upper and lower limit.
+- Read rise time, overshoot, settling time and steady-state error live.
+- See omega_n and zeta for a PI loop, and whether zeta is between 0.6 and 0.8.
+- Turn anti-windup on or off.
+- Answer a "Predict, then check" question before moving the sliders.
+
+### Validation checks (P1)
+For the plant K = 1 and tau = 1 s:
+- **Check 1:** P only, Kp = 9 gives closed-loop tau = 0.1 s and steady-state error 10 %.
+- **Check 2:** PI with Kp = 1 and Ki = 1 gives omega_n = 1 rad/s and zeta = 1.
+- **Check 3:** Any PI controller gives zero steady-state error for a step.
+
+The page computes each one and shows PASS or FAIL.
+
+Result: PASS (all three)
+
+## P2: A slow sensor in the loop
+Pages: `control/p2.html`
+
+The sensor is a first-order lag in the feedback path. The controller only controls what the sensor says: it sees the reading ys, not the true output y.
+
+You can:
+- Change the sensor time constant tau_s and the PID gains.
+- See the true output and the sensor reading on the same plot.
+- See the overshoot against tau_s (41 simulations run live), and the point where the loop stops settling.
+- See the block diagram with the sensor in the feedback path.
+- Answer a "Predict, then check" question before moving the sliders.
+
+With Kp = 9 and Ki = 20 the loop is marginal at tau_s = 1 s and unstable above it (Routh test on s^3 + 2s^2 + 10s + 20).
+
+---
+
 ## Screenshots
 
 **Module 1: First-order time response**
@@ -212,8 +269,11 @@ Pull Request: #5
 
 ## Use of AI tools
 
-We used Claude and ChatGPT to help write the code.
-We tested it and can explain every line.
+We used Claude and ChatGPT to help write the code in both homeworks.
+- Homework 1: to help write the code for the four modules.
+- Homework 2: to help write the P1 and P2 pages and the closed-loop simulation code, and to explain PID concepts.
+
+We tested everything and can explain every line.
 
 ## Related issues
 
