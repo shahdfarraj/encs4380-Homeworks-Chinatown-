@@ -269,6 +269,7 @@ With Kp = 9 and Ki = 20 the loop is marginal at tau_s = 1 s and unstable above i
 
 **Homework 2**
 **P1 and P2 validation checks**
+
 <img width="506" height="572" alt="image" src="https://github.com/user-attachments/assets/a98e0fee-20d0-4aa9-b818-1232dbd29e24" />
 
 
