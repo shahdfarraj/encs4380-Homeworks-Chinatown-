@@ -148,7 +148,9 @@ Pull Request: #5
 
 # ENCS4380 Homework 2: PID Control Toolkit
 
-**Control section:** https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p1.html
+**Control section:**
+- [P1: PID playground](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p1.html)
+- [P2: A slow sensor in the loop](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p2.html)
 
 ## What is this?
 Homework 1 showed how slow a system is. Homework 2 shows how to make it faster and more accurate with feedback.
@@ -163,8 +165,7 @@ The closed loop is simulated step by step in time with RK4, so it works for ever
 | Shahd Farraj | P2: A slow sensor in the loop | Done |
 
 ## P1: PID playground
-Pages: `control/p1.html`
-
+Live page: [P1](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p1.html)
 You can:
 - Choose a first-order plant K/(tau s + 1) or a second-order plant, and change Kp, Ki, Kd and the setpoint step.
 - See the block diagram of the loop.
@@ -185,8 +186,7 @@ The page computes each one and shows PASS or FAIL.
 Result: PASS (all three)
 
 ## P2: A slow sensor in the loop
-Pages: `control/p2.html`
-
+Live page: [P2](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p2.html)
 The sensor is a first-order lag in the feedback path. The controller only controls what the sensor says: it sees the reading ys, not the true output y.
 
 You can:
