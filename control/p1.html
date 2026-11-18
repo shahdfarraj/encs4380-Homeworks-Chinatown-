@@ -1,66 +1,242 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>P1 PID playground</title></head>
-<body style="font-family:sans-serif;max-width:700px;margin:auto;padding:10px">
-<h2>P1: PID playground</h2>
+<title>P1 · PID playground · ENCS4380 HW2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f2f5f8;--panel:#fff;--ink:#12263a;--mute:#5b6b7a;--rule:#cfd9e2;--grid:#e3eaf0;--y:#1f5fbf;--r:#c77700;--u:#1e8a5a;--bad:#b3261e;--ok:#1e8a5a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+.mono,output,.val{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace}
+header{padding:18px 20px 14px;border-bottom:2px solid var(--ink);background:var(--panel)}
+header h1{margin:0;font-size:22px;font-weight:600}
+header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+main{display:grid;grid-template-columns:330px 1fr;gap:14px;padding:14px;max-width:1200px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:12px 14px;margin-bottom:14px}
+h2{margin:0 0 8px;font-size:14px;font-weight:600;padding-bottom:4px;border-bottom:1px solid var(--rule)}
+.row{display:grid;grid-template-columns:92px 1fr 52px;align-items:center;gap:8px;margin:5px 0;font-size:14px}
+.row output{text-align:right;font-size:13px}
+input[type=range]{width:100%;accent-color:var(--y)}
+select,button,textarea{font:inherit;padding:5px 8px;border:1px solid var(--rule);border-radius:3px;background:#fff;color:var(--ink)}
+button{cursor:pointer;background:var(--ink);color:#fff;border-color:var(--ink)}
+button.alt{background:#fff;color:var(--ink);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--y);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+canvas{width:100%;height:250px;display:block;border:1px solid var(--rule);background:#fff}
+.legend{display:flex;gap:16px;font-size:12.5px;color:var(--mute);margin:4px 0 0}
+.legend i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(max-width:560px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{border:1px solid var(--rule);border-left:4px solid var(--y);padding:6px 10px}
+.tile small{display:block;color:var(--mute);font-size:12px}
+.tile .val{font-size:19px;font-weight:500}
+.note{font-size:13px;color:var(--mute);margin:8px 0 0}
+.pass{color:var(--ok);font-weight:600}.fail{color:var(--bad);font-weight:600}
+svg text{font:12px "IBM Plex Mono",monospace;fill:var(--ink)}
+svg .s{stroke:var(--ink);stroke-width:1.6;fill:none}
+.chk li{margin:4px 0}
+.opts label{margin-right:14px}
+details summary{cursor:pointer;font-weight:600;font-size:14px}
+</style></head>
+<body>
+<header>
+<h1>P1 · PID playground</h1>
+<p>ENCS4380 Interfacing Techniques · Homework 2 · Closed-loop simulation, RK4, runs live in the browser · Owner: <em>write your name here</em></p>
+</header>
+<main>
+<div>
+<section><h2>Plant</h2>
+<div class="row"><label for="plant">Model</label><select id="plant"><option value="1">First order  K/(τs+1)</option><option value="2">Second order  Kωn²/(s²+2ζωn s+ωn²)</option></select><span></span></div>
+<div id="g-p1"></div><div id="g-p2" hidden></div>
+<div class="btns"><button class="alt" data-set="K=1,tau=1">K=1, τ=1 (validation plant)</button></div>
+<p class="note">Micromouse groups: put the K and τ from your PWM step test here, and write the source on the "My system" page.</p>
+</section>
+<section><h2>Controller</h2><div id="g-pid"></div>
+<div class="btns">
+<button class="alt" data-set="kp=9,ki=0,kd=0">P only, Kp=9</button>
+<button class="alt" data-set="kp=1,ki=1,kd=0">PI, 1 / 1</button>
+<button class="alt" data-set="kp=9,ki=10,kd=0.5">PID example</button></div>
+</section>
+<section><h2>Setpoint, limit and window</h2><div id="g-loop"></div>
+<div class="row"><label for="T">Window</label><select id="T"><option>2</option><option selected>5</option><option>10</option><option>20</option></select><span class="mono">s</span></div>
+<label><input type="checkbox" id="aw" checked> Anti-windup (stop integrating while u is saturated)</label>
+<p class="note">Micromouse motor: keep u between 0 and 100 (PWM %).</p>
+</section>
+</div>
 
-<p>Kp <input id="kp" type="range" min="0" max="20" step="0.1" value="9"> <b id="kpv"></b></p>
-<p>Ki <input id="ki" type="range" min="0" max="20" step="0.1" value="0"> <b id="kiv"></b></p>
-<p>Kd <input id="kd" type="range" min="0" max="5" step="0.05" value="0"> <b id="kdv"></b></p>
-<p>K (plant) <input id="K" type="range" min="0.5" max="5" step="0.1" value="1"> <b id="Kv"></b></p>
-<p>tau (plant) <input id="tau" type="range" min="0.1" max="5" step="0.1" value="1"> <b id="tauv"></b></p>
+<div>
+<section><h2>Loop block diagram</h2>
+<svg viewBox="0 0 640 140" width="100%" role="img" aria-label="Block diagram: r minus y gives e, PID gives u, saturation, plant gives y, feedback to the summing junction">
+<defs><marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#12263a"/></marker></defs>
+<text x="4" y="50">r</text><path class="s" d="M16 55H66" marker-end="url(#a)"/>
+<circle class="s" cx="80" cy="55" r="14"/><text x="72" y="52" style="font-size:11px">+</text><text x="85" y="75" style="font-size:12px">−</text>
+<path class="s" d="M94 55H136" marker-end="url(#a)"/><text x="108" y="45">e</text>
+<rect class="s" x="138" y="32" width="112" height="46"/><text x="152" y="52">PID</text><text x="152" y="68" style="font-size:10px">Kp+Ki∫+Kd d/dt</text>
+<path class="s" d="M250 55H286" marker-end="url(#a)"/>
+<rect class="s" x="288" y="32" width="86" height="46"/><text x="300" y="52">limit</text><text x="300" y="68" style="font-size:10px">umin..umax</text>
+<path class="s" d="M374 55H416" marker-end="url(#a)"/><text x="388" y="45">u</text>
+<rect class="s" x="418" y="32" width="100" height="46"/><text x="432" y="52">Plant</text><text x="432" y="68" style="font-size:10px">K, τ or ωn, ζ</text>
+<path class="s" d="M518 55H610" marker-end="url(#a)"/><text x="612" y="59">y</text>
+<path class="s" d="M560 55V112H80V70" marker-end="url(#a)"/><text x="300" y="128">feedback y (ideal sensor; see P2 for a slow one)</text>
+</svg></section>
 
-<canvas id="c" width="700" height="300" style="width:100%;border:1px solid #888"></canvas>
-<pre id="m"></pre>
+<section><h2>Output vs setpoint</h2>
+<canvas id="c1"></canvas>
+<div class="legend"><span><i style="border-color:var(--y)"></i>y output</span><span><i style="border-color:var(--r);border-top-style:dashed"></i>setpoint r</span></div>
+<h2 style="margin-top:14px">Control signal u</h2>
+<canvas id="c2"></canvas>
+<div class="legend"><span><i style="border-color:var(--u)"></i>u applied</span><span><i style="border-color:#9aa8b5;border-top-style:dotted"></i>u requested by PID (clipped at the plot edge)</span><span><i style="border-color:var(--bad);border-top-style:dashed"></i>limits</span></div>
+</section>
+
+<section><h2>Live metrics</h2><div class="tiles" id="tiles"></div><p class="note" id="mnote"></p></section>
+
+<section><h2>Predict, then check</h2>
+<p style="margin:0 0 6px">Choose a change, write your prediction, then let the simulator decide. It changes one parameter on a copy of your current settings.</p>
+<select id="pq"></select>
+<div class="opts" style="margin:8px 0"><label><input type="radio" name="pp" value="up"> increases</label><label><input type="radio" name="pp" value="down"> decreases</label><label><input type="radio" name="pp" value="same"> about the same</label></div>
+<textarea id="why" rows="2" style="width:100%" placeholder="Why do you think so? (one sentence)"></textarea>
+<div class="btns"><button id="chk">Check my prediction</button></div>
+<p id="pres" style="margin:8px 0 0"></p>
+</section>
+
+<section><h2>Validation checks (K = 1, τ = 1)</h2>
+<ul class="chk" id="val" style="padding-left:18px;margin:0"></ul>
+<div class="btns"><button class="alt" id="rerun">Run checks again</button></div>
+</section>
+</div>
+</main>
 
 <script>
-const $ = id => document.getElementById(id);
-const ids = ["kp","ki","kd","K","tau"];
-ids.forEach(i => $(i).oninput = run);
+const $=s=>document.querySelector(s);
+const CFG={
+ p1:[['K','K (gain)',.5,5,.1,1],['tau','τ (s)',.1,5,.1,1]],
+ p2:[['K2','K (gain)',.5,5,.1,1],['wn','ωn (rad/s)',.5,20,.1,4],['zp','ζ plant',.05,2,.05,.3]],
+ pid:[['kp','Kp',0,20,.1,9],['ki','Ki',0,30,.1,0],['kd','Kd',0,5,.05,0]],
+ loop:[['r','Setpoint',.1,5,.1,1],['umax','u max',1,200,1,100],['umin','u min',-100,0,1,0]]};
+for(const g in CFG)$('#g-'+g).innerHTML=CFG[g].map(c=>`<div class="row"><label for="${c[0]}">${c[1]}</label><input type="range" id="${c[0]}" min="${c[2]}" max="${c[3]}" step="${c[4]}" value="${c[5]}"><output id="o${c[0]}"></output></div>`).join('');
 
+function read(){const v={};for(const g in CFG)CFG[g].forEach(c=>v[c[0]]=+$('#'+c[0]).value);
+ v.plant=$('#plant').value;v.T=+$('#T').value;v.aw=$('#aw').checked;return v}
+
+/* Closed-loop simulation: PID (filtered derivative, Tf=10 ms, clamping anti-windup) + RK4 plant, dt=1 ms */
+function sim(p){
+ const dt=.001,n=Math.round(p.T/dt),K=p.plant=='1'?p.K:p.K2,Tf=.01;
+ const f=(x,u)=>p.plant=='1'?[(K*u-x[0])/p.tau,0]:[x[1],p.wn*p.wn*(K*u-x[0])-2*p.zp*p.wn*x[1]];
+ const y=new Float32Array(n),u=new Float32Array(n),ur=new Float32Array(n);
+ let x=[0,0],I=0,d=0,ep=0,len=n,bad=false;
+ for(let i=0;i<n;i++){
+  const e=p.r-x[0];
+  d=(Tf*d+p.kd*(e-ep))/(Tf+dt);
+  const In=I+e*dt,raw=p.kp*e+p.ki*In+d,us=Math.min(p.umax,Math.max(p.umin,raw));
+  if(!(p.aw&&raw!==us&&e*(raw-us)>0))I=In;
+  y[i]=x[0];u[i]=us;ur[i]=raw;
+  const k1=f(x,us),k2=f([x[0]+dt/2*k1[0],x[1]+dt/2*k1[1]],us),k3=f([x[0]+dt/2*k2[0],x[1]+dt/2*k2[1]],us),k4=f([x[0]+dt*k3[0],x[1]+dt*k3[1]],us);
+  x=[x[0]+dt/6*(k1[0]+2*k2[0]+2*k3[0]+k4[0]),x[1]+dt/6*(k1[1]+2*k2[1]+2*k3[1]+k4[1])];
+  ep=e;
+  if(!isFinite(x[0])||Math.abs(x[0])>1e3*p.r){len=i+1;bad=true;break}
+ }
+ return{y:y.subarray(0,len),u:u.subarray(0,len),ur:ur.subarray(0,len),len,dt,bad};
+}
+
+function metrics(s,r){
+ const {y,u,ur,len:n,dt}=s,yf=y[n-1],m={bad:s.bad};
+ let ym=-1e9,up=-1e9,sat=0;
+ for(let i=0;i<n;i++){ym=Math.max(ym,y[i]);up=Math.max(up,u[i]);if(ur[i]!==u[i])sat++}
+ m.ess=(r-yf)/r*100;m.yf=yf;m.up=up;m.sat=sat/n*100;
+ m.os=yf>.01*r?Math.max(0,(ym-yf)/yf*100):0;
+ m.rise=null;m.tcl=null;m.settle=null;
+ if(yf>.01*r){
+  const a=y.findIndex(v=>v>=.1*yf),b=y.findIndex(v=>v>=.9*yf),c=y.findIndex(v=>v>=.632*yf);
+  if(a>=0&&b>=0)m.rise=(b-a)*dt;if(c>=0)m.tcl=c*dt;
+  let k=n-1;while(k>=0&&Math.abs(y[k]-yf)<=.02*Math.abs(yf))k--;
+  if(k<n*.95)m.settle=(k+1)*dt;
+ }
+ return m;
+}
+
+/* plotting */
+function nice(a,b,n){const s=(b-a)/n,p=Math.pow(10,Math.floor(Math.log10(s))),q=s/p,st=(q<1.5?1:q<3.5?2:q<7.5?5:10)*p,o=[];for(let v=Math.ceil(a/st)*st;v<=b+1e-9;v+=st)o.push(+v.toFixed(10));return o}
+function plot(cv,T,ymin,ymax,series,hl){
+ const dpr=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
+ const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+ const L=46,R=10,Tp=10,B=26,pw=W-L-R,ph=H-Tp-B,X=t=>L+t/T*pw,Y=v=>Tp+ph-(v-ymin)/(ymax-ymin)*ph;
+ g.font='11px "IBM Plex Mono",monospace';g.fillStyle='#5b6b7a';g.strokeStyle='#e3eaf0';g.lineWidth=1;
+ nice(0,T,6).forEach(t=>{g.beginPath();g.moveTo(X(t),Tp);g.lineTo(X(t),Tp+ph);g.stroke();g.textAlign='center';g.fillText(t,X(t),H-9)});
+ nice(ymin,ymax,5).forEach(v=>{g.beginPath();g.moveTo(L,Y(v));g.lineTo(L+pw,Y(v));g.stroke();g.textAlign='right';g.fillText(+v.toFixed(2),L-5,Y(v)+4)});
+ g.textAlign='right';g.fillText('t (s)',W-R,H-9);
+ g.strokeStyle='#12263a';g.strokeRect(L,Tp,pw,ph);
+ g.save();g.beginPath();g.rect(L,Tp,pw,ph);g.clip();
+ hl.forEach(h=>{g.strokeStyle=h.c;g.lineWidth=1.5;g.setLineDash(h.d||[]);g.beginPath();g.moveTo(L,Y(h.v));g.lineTo(L+pw,Y(h.v));g.stroke()});
+ series.forEach(s=>{g.strokeStyle=s.c;g.lineWidth=s.w||2;g.setLineDash(s.d||[]);g.beginPath();const st=Math.max(1,Math.floor(s.a.length/(pw*2)));
+  for(let i=0;i<s.a.length;i+=st){const px=X(i*s.dt),py=Y(s.a[i]);i?g.lineTo(px,py):g.moveTo(px,py)}g.stroke()});
+ g.restore();
+}
+
+const fmt=(v,u,d=2)=>v==null?'—':v.toFixed(d)+' '+u;
 function run(){
-  const Kp=+$("kp").value, Ki=+$("ki").value, Kd=+$("kd").value;
-  const K=+$("K").value, tau=+$("tau").value;
-  ids.forEach(i => $(i+"v").textContent = $(i).value);
-
-  const dt=0.001, T=10, r=1;
-  let y=0, I=0, prevE=r, ys=[];
-  for(let t=0;t<T;t+=dt){
-    const e=r-y;
-    I+=e*dt;
-    const u=Kp*e+Ki*I+Kd*(e-prevE)/dt;
-    y+=dt*(K*u-y)/tau;          // Euler
-    prevE=e;
-    ys.push(y);
-  }
-  draw(ys,dt,r);
-  metrics(ys,dt,r);
+ const p=read();
+ for(const g in CFG)CFG[g].forEach(c=>$('#o'+c[0]).textContent=(+$('#'+c[0]).value).toFixed(c[4]<.1?2:1));
+ $('#g-p1').hidden=p.plant!='1';$('#g-p2').hidden=p.plant!='2';
+ const s=sim(p),m=metrics(s,p.r),Tn=s.len*s.dt;
+ const ys=[...s.y],ym=Math.min(Math.max(...ys),5*p.r),yn=Math.max(Math.min(...ys),-2*p.r);
+ plot($('#c1'),p.T,Math.min(0,yn)-.05*p.r,Math.max(1.2*p.r,ym*1.05),[{a:s.y,dt:s.dt,c:'#1f5fbf'}],[{v:p.r,c:'#c77700',d:[6,4]}]);
+ const span=p.umax-p.umin;
+ plot($('#c2'),p.T,p.umin-.08*span,p.umax+.08*span,[{a:s.ur,dt:s.dt,c:'#9aa8b5',w:1,d:[2,3]},{a:s.u,dt:s.dt,c:'#1e8a5a'}],[{v:p.umax,c:'#b3261e',d:[6,4]},{v:p.umin,c:'#b3261e',d:[6,4]}]);
+ const T=(l,v,c)=>`<div class="tile" ${c?`style="border-left-color:${c}"`:''}><small>${l}</small><span class="val">${v}</span></div>`;
+ let h;
+ if(m.bad){h=T('Status','UNSTABLE','#b3261e')+T('Rise time','—')+T('Overshoot','—')+T('Settling','—')}
+ else h=T('Rise time (10–90%)',fmt(m.rise,'s',3))+T('Overshoot',fmt(m.os,'%',1))+T('Settling time (2%)',m.settle==null?'not settled':fmt(m.settle,'s',2))+T('Steady-state error',fmt(m.ess,'%',1));
+ h+=T('Peak u',fmt(m.up,'')+' / '+p.umax,m.up>=p.umax-1e-6?'#b3261e':'#1e8a5a')+T('Time saturated',fmt(m.sat,'%',1),m.sat>0?'#c77700':'#1e8a5a');
+ if(p.plant=='1'){
+  const A=1+p.K*p.kp;
+  if(p.ki>0){const wn=Math.sqrt(p.K*p.ki/p.tau),z=A/(2*Math.sqrt(p.tau*p.K*p.ki)),ok=z>=.6&&z<=.8;
+   h+=T('ωn (PI loop)',wn.toFixed(2)+' rad/s')+T('ζ (target 0.6–0.8)',z.toFixed(2)+(ok?'  ✓':'  ✗'),ok?'#1e8a5a':'#c77700')}
+  else h+=T('P-only τcl = τ/(1+K·Kp)',(p.tau/A).toFixed(3)+' s')+T('P-only ess = 1/(1+K·Kp)',(100/A).toFixed(1)+' %');
+ }
+ $('#tiles').innerHTML=h;
+ $('#mnote').textContent=(m.bad?'The loop diverges. Lower the gains.':'')+(p.plant=='1'?' ωn and ζ formulas are for a first-order plant with a PI controller (Kd = 0).':'');
 }
 
-function draw(ys,dt,r){
-  const c=$("c"), g=c.getContext("2d");
-  g.clearRect(0,0,700,300);
-  const ymax=Math.max(1.5,...ys);
-  const X=i=>i/ys.length*700, Y=v=>300-v/ymax*280-10;
-  g.strokeStyle="red"; g.setLineDash([6,4]);
-  g.beginPath(); g.moveTo(0,Y(r)); g.lineTo(700,Y(r)); g.stroke();
-  g.setLineDash([]); g.strokeStyle="blue"; g.beginPath();
-  ys.forEach((v,i)=>{ i? g.lineTo(X(i),Y(v)) : g.moveTo(X(i),Y(v)); });
-  g.stroke();
+/* Predict, then check */
+const SC=[
+ ['Double Kp: the steady-state error will…','kp',v=>v?v*2:1,'ess'],
+ ['Double Kp: the rise time will…','kp',v=>v?v*2:1,'rise'],
+ ['Double Ki: the overshoot will…','ki',v=>v?v*2:2,'os'],
+ ['Double Ki: the settling time will…','ki',v=>v?v*2:2,'settle'],
+ ['Double Kd: the overshoot will…','kd',v=>v?v*2:.5,'os'],
+ ['Double the plant τ (first order): the rise time will…','tau',v=>v*2,'rise'],
+ ['Halve u max: the rise time will…','umax',v=>v/2,'rise']];
+$('#pq').innerHTML=SC.map((s,i)=>`<option value="${i}">${s[0]}</option>`).join('');
+$('#chk').onclick=()=>{
+ const pick=document.querySelector('input[name=pp]:checked');if(!pick){$('#pres').textContent='Pick a prediction first.';return}
+ const [,k,f,met]=SC[+$('#pq').value],p=read(),q={...p};q[k]=f(p[k]);
+ const val=o=>{const m=metrics(sim(o),o.r);if(o.bad)return Infinity;const v=m[met];return v==null?Infinity:v};
+ const a=val(p),b=val(q),pct=met=='os'||met=='ess';
+ let res='same';
+ if(a!==b){const dlt=Math.abs(b-a);if(!(pct?dlt<.5:dlt/Math.max(Math.abs(a),1e-9)<.05))res=b>a?'up':'down'}
+ const w={up:'increased',down:'decreased',same:'stayed about the same'}[res],nm=v=>v==Infinity?'never reached':v.toFixed(3);
+ $('#pres').innerHTML=(pick.value==res?'<span class="pass">Correct.</span> ':'<span class="fail">Not quite.</span> ')+`With ${k} = ${(+p[k]).toFixed(2)} → ${(+q[k]).toFixed(2)} it ${w} (${nm(a)} → ${nm(b)}). Compare this with what you wrote, then explain it in your report.`;
+};
+
+/* Validation checks */
+function validate(){
+ const base={plant:'1',K:1,tau:1,r:1,umax:1e9,umin:-1e9,aw:false,kd:0},L=[];
+ const add=(ok,t)=>L.push(`<li><span class="${ok?'pass':'fail'}">${ok?'PASS':'FAIL'}</span> ${t}</li>`);
+ let m=metrics(sim({...base,kp:9,ki:0,T:3}),1);
+ add(Math.abs(m.tcl-.1)<.01&&Math.abs(m.ess-10)<.3,`P only, Kp=9: τcl = ${m.tcl.toFixed(3)} s (expected 0.1), error = ${m.ess.toFixed(2)} % (expected 10)`);
+ m=metrics(sim({...base,kp:1,ki:1,T:10}),1);
+ const wn=Math.sqrt(1*1/1),z=(1+1)/(2*Math.sqrt(1));
+ add(Math.abs(wn-1)<1e-9&&Math.abs(z-1)<1e-9&&m.os<1,`PI, Kp=1, Ki=1: ωn = ${wn.toFixed(2)}, ζ = ${z.toFixed(2)}, simulated overshoot = ${m.os.toFixed(2)} %`);
+ m=metrics(sim({...base,kp:2,ki:3,T:20}),1);
+ add(Math.abs(m.ess)<.1,`PI, Kp=2, Ki=3: steady-state error = ${m.ess.toFixed(4)} % (expected 0)`);
+ $('#val').innerHTML=L.join('');
 }
 
-function metrics(ys,dt,r){
-  const yf=ys[ys.length-1];
-  const t10=ys.findIndex(v=>v>=0.1*r), t90=ys.findIndex(v=>v>=0.9*r);
-  const rise = (t10>=0&&t90>=0) ? ((t90-t10)*dt).toFixed(3)+" s" : "never";
-  const os = Math.max(0,(Math.max(...ys)-r)/r*100).toFixed(1)+" %";
-  let ts=ys.length-1;
-  while(ts>0 && Math.abs(ys[ts]-r)<=0.02*r) ts--;
-  const settle = ts>=ys.length-2 ? "not settled" : (ts*dt).toFixed(2)+" s";
-  const ess=((r-yf)/r*100).toFixed(1)+" %";
-  $("m").textContent=`Rise time: ${rise}\nOvershoot: ${os}\nSettling (2%): ${settle}\nSteady-state error: ${ess}`;
-}
-run();
+document.querySelectorAll('input[type=range],select,#aw').forEach(e=>e.addEventListener('input',run));
+document.querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{b.dataset.set.split(',').forEach(kv=>{const [k,v]=kv.split('=');$('#'+k).value=v});run()});
+$('#rerun').onclick=validate;addEventListener('resize',run);
+run();validate();
 </script>
 </body></html>

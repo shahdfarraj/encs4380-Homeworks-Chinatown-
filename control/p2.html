@@ -17,6 +17,7 @@ main{display:grid;grid-template-columns:330px 1fr;gap:14px;padding:14px;max-widt
 section{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:12px 14px;margin-bottom:14px}
 h2{margin:0 0 8px;font-size:14px;font-weight:600;padding-bottom:4px;border-bottom:1px solid var(--rule)}
 .row{display:grid;grid-template-columns:92px 1fr 52px;align-items:center;gap:8px;margin:5px 0;font-size:14px}
+.row select.wide{grid-column:2/4;width:100%;min-width:0}
 .row output{text-align:right;font-size:13px}
 input[type=range]{width:100%;accent-color:var(--s)}
 select,button,textarea{font:inherit;padding:5px 8px;border:1px solid var(--rule);border-radius:3px;background:#fff;color:var(--ink)}
@@ -50,7 +51,7 @@ svg .s{stroke:var(--ink);stroke-width:1.6;fill:none}
 <div class="btns"><button class="alt" data-set="ts=0">Ideal τs=0</button><button class="alt" data-set="ts=0.5">Slow 0.5</button><button class="alt" data-set="ts=1">Slower 1.0</button></div>
 </section>
 <section><h2>Plant</h2>
-<div class="row"><label for="plant">Model</label><select id="plant"><option value="1">First order  K/(τs+1)</option><option value="2">Second order</option></select><span></span></div>
+<div class="row"><label for="plant">Model</label><select id="plant" class="wide"><option value="1">First order</option><option value="2">Second order</option></select></div>
 <div id="g-p1"></div><div id="g-p2" hidden></div>
 </section>
 <section><h2>Controller</h2><div id="g-pid"></div>
@@ -75,7 +76,7 @@ svg .s{stroke:var(--ink);stroke-width:1.6;fill:none}
 <path class="s" d="M358 55H470" marker-end="url(#a)"/><text x="474" y="59">y</text>
 <path class="s" d="M410 55V112H360" marker-end="url(#a)"/>
 <rect class="s" x="228" y="94" width="130" height="36" style="stroke:#7a3fb0"/><text x="238" y="109" style="fill:#7a3fb0">Sensor 1/(τs·s+1)</text><text x="238" y="123" style="font-size:10px">slow measurement</text>
-<path class="s" d="M228 112H70V70" marker-end="url(#a)" style="stroke:#7a3fb0"/><text x="110" y="106" style="fill:#7a3fb0">ys (what the controller sees)</text>
+<path class="s" d="M228 112H70V70" marker-end="url(#a)" style="stroke:#7a3fb0"/><text x="100" y="106" style="fill:#7a3fb0">ys (measured)</text>
 </svg></section>
 
 <section><h2>True output vs what the sensor reports</h2>
