@@ -1,4 +1,4 @@
-# encs4380-dynamics--Chinatown-
+
 
 # ENCS4380 Homework 1: Dynamic Characteristics Toolkit
 
