@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>P3 · Digital PID · ENCS4380 HW2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f2f5f8;--panel:#fff;--ink:#12263a;--mute:#5b6b7a;--rule:#cfd9e2;--y:#1f5fbf;--r:#c77700;--u:#1e8a5a;--s:#7a3fb0;--bad:#b3261e;--ok:#1e8a5a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+output,.val{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace}
+header{padding:18px 20px 14px;border-bottom:2px solid var(--ink);background:var(--panel)}
+header h1{margin:0;font-size:22px;font-weight:600}
+header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+main{display:grid;grid-template-columns:330px 1fr;gap:14px;padding:14px;max-width:1200px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:12px 14px;margin-bottom:14px}
+h2{margin:0 0 8px;font-size:14px;font-weight:600;padding-bottom:4px;border-bottom:1px solid var(--rule)}
+.row{display:grid;grid-template-columns:92px 1fr 52px;align-items:center;gap:8px;margin:5px 0;font-size:14px}
+.row select.wide{grid-column:2/4;width:100%;min-width:0}
+.row output{text-align:right;font-size:13px}
+input[type=range]{width:100%;accent-color:var(--s)}
+select,button,textarea{font:inherit;padding:5px 8px;border:1px solid var(--rule);border-radius:3px;background:#fff;color:var(--ink)}
+button{cursor:pointer;background:var(--ink);color:#fff;border-color:var(--ink)}
+button.alt{background:#fff;color:var(--ink);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--y);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+canvas{width:100%;height:250px;display:block;border:1px solid var(--rule);background:#fff}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12.5px;color:var(--mute);margin:4px 0 0}
+.legend i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(max-width:560px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{border:1px solid var(--rule);border-left:4px solid var(--y);padding:6px 10px}
+.tile small{display:block;color:var(--mute);font-size:12px}
+.tile .val{font-size:19px;font-weight:500}
+.note{font-size:13px;color:var(--mute);margin:8px 0 0}
+.pass{color:var(--ok);font-weight:600}.fail{color:var(--bad);font-weight:600}
+svg text{font:12px "IBM Plex Mono",monospace;fill:var(--ink)}
+svg .s{stroke:var(--ink);stroke-width:1.6;fill:none}
+.chk li{margin:4px 0}.opts label{margin-right:14px}
+
+pre{overflow:auto;padding:12px;background:var(--paper);font-size:13px}
+main>*{min-width:0}figure{margin:10px 0}figure svg{width:100%;height:auto}svg text{font-size:13px}
+</style></head><body><header><a href="../index.html">← Dynamics Toolkit</a>
+<h1>P3 · Digital PID</h1><p>ENCS4380 · Homework 2 · Laila Bahjat</p></header>
+<main><div><section><h2>Controller settings</h2><div id="settings"></div>
+<label><input id="aw" type="checkbox" checked> Enable anti-windup</label>
+<p class="note">PWM is limited to 0–100%. The setpoint steps from 0 to 40 speed units.</p></section>
+<section><h2>Predict, then check</h2><p>Keep the gains fixed. What happens to the width of each PWM step when the sampling time increases from 0.05 s to 0.50 s?</p>
+<details><summary>Check your prediction</summary><p>Each step lasts ten times longer. The controller waits longer before correcting an error, so the output can overshoot or oscillate. Try both settings.</p></details>
+<p>To test windup, set Kp = 4, Ki = 10 and Ts = 0.05 s. Compare the peak speed with anti-windup on and off.</p></section>
+<section><h2>Plant model</h2><p>τ dy/dt = K u − y. Between samples, PWM stays constant while Euler integration advances the motor model.</p>
+<p class="note">Defaults are the homework reference plant (K = 1, τ = 1 s). Use your team’s measured motor values when available. K is speed units per PWM percentage point.</p></section></div>
+<div><section><h2>Sampled response</h2><figure><figcaption>Speed (blue) and setpoint (orange dashed)</figcaption><svg id="speed" viewBox="0 0 600 200" role="img" aria-label="Motor speed and setpoint versus time"></svg></figure>
+<figure><figcaption>Applied PWM (%) · held between samples</figcaption><svg id="pwm" viewBox="0 0 600 200" role="img" aria-label="Stair-step PWM versus time"></svg></figure><output id="result"></output></section>
+<section><h2>Arduino loop</h2><p class="note">Example wiring for an Uno: pin 9 drives a motor driver PWM input. A0 reads conditioned speed feedback scaled to 0–100 speed units. For the Micromouse, replace readSpeed() with the calibrated encoder speed and use your board’s PWM output.</p><button id="copy">Copy code</button> <span id="copied" role="status"></span><pre id="sketch"></pre></section></div></main>
+<script>
+const byId = id => document.getElementById(id);
+const controls = [
+  ["Ts","Ts (s)",0.01,1,0.01,0.05], ["Kp","Kp",0,10,0.1,4],
+  ["Ki","Ki",0,10,0.1,3], ["Kd","Kd",0,1,0.01,0],
+  ["K","Plant K",0.1,5,0.1,1], ["tau","Plant τ (s)",0.1,5,0.1,1]
+];
+for (const [id,label,min,max,step,value] of controls) {
+  byId("settings").insertAdjacentHTML("beforeend", `<div class="row"><label for="${id}">${label}</label><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${value}"><output id="${id}Val" for="${id}"></output></div>`);
+}
+function simulate({Ts,Kp,Ki,Kd,K,tau,aw}) {
+  let y=0, integral=0, previousError=0;
+  const speed=[[0,0]], pwm=[];
+  const duration=10;
+  for (let k=0; k*Ts<duration; k++) {
+    const t=k*Ts, error=40-y;
+    const derivative=(error-previousError)/Ts;
+    const nextIntegral=integral+Ki*Ts*error;
+    const request=Kp*error+nextIntegral+Kd*derivative;
+    const duty=Math.max(0,Math.min(100,request));
+    // Apply the limited request; freeze accumulation when error drives further into a limit.
+    if (!aw || !((request>100 && error>0) || (request<0 && error<0))) integral=nextIntegral;
+    previousError=error;
+    const end=Math.min(duration,(k+1)*Ts);
+    pwm.push([t,duty],[end,duty]);
+    const steps=Math.ceil((end-t)/0.002), dt=(end-t)/steps;
+    for (let j=1; j<=steps; j++) {
+      y+=dt*(K*duty-y)/tau;
+      speed.push([t+j*dt,y]);
+    }
+  }
+  return {speed,pwm};
+}
+function plot(id,points,top,color,target) {
+  const x=t=>50+53*t, y=v=>162-140*v/top;
+  let content="";
+  for (const tick of [0,top/2,top]) {
+    content+=`<path d="M50 ${y(tick)}h530" stroke="#d8e0e8"/><text x="45" y="${y(tick)+4}" text-anchor="end">${tick}</text>`;
+  }
+  for (const t of [0,2,4,6,8,10]) content+=`<text x="${x(t)}" y="180" text-anchor="middle">${t}</text>`;
+  content+='<text x="315" y="197" text-anchor="middle">Time (s)</text>';
+  if (target) content+=`<path d="M50 ${y(40)}h530" stroke="#c77700" stroke-dasharray="6 4" stroke-width="2"/>`;
+  const line=points.map(([t,v])=>x(t).toFixed(2)+","+y(v).toFixed(2)).join(" ");
+  byId(id).innerHTML=content+`<polyline fill="none" stroke="${color}" stroke-width="2" points="${line}"/>`;
+}
+function arduino({Ts,Kp,Ki,Kd,aw}) {
+  return `const unsigned long periodUs = ${Math.round(Ts*1e6)}UL;
+const float Ts = ${Ts}, Kp = ${Kp}, Ki = ${Ki}, Kd = ${Kd};
+const bool antiWindup = ${aw};
+float integral = 0, previousError = 0;
+unsigned long lastSample;
+
+float readSpeed() {
+  return analogRead(A0) * (100.0 / 1023.0);
+}
+
+void setup() {
+  pinMode(9, OUTPUT);
+  lastSample = micros() - periodUs;
+}
+
+void loop() {
+  unsigned long now = micros();
+  if (now - lastSample < periodUs) return;
+  lastSample = now;
+
+  float error = 40.0 - readSpeed();
+  float derivative = (error - previousError) / Ts;
+  float nextIntegral = integral + Ki * Ts * error;
+  float request = Kp * error + nextIntegral + Kd * derivative;
+  float duty = constrain(request, 0.0f, 100.0f);
+  bool pushingLimit = (request > 100 && error > 0)
+                   || (request < 0 && error < 0);
+  if (!antiWindup || !pushingLimit) integral = nextIntegral;
+  analogWrite(9, round(duty * 255.0 / 100.0));
+  previousError = error;
+}`;
+}
+function update() {
+  const p={aw:byId("aw").checked};
+  for (const [id] of controls) {
+    p[id]=Number(byId(id).value);
+    byId(id+"Val").value=byId(id).value;
+  }
+  const {speed,pwm}=simulate(p);
+  const peak=speed.reduce((m,point)=>Math.max(m,point[1]),0);
+  plot("speed",speed,Math.max(50,Math.ceil(peak/10)*10),"#1f5fbf",true);
+  plot("pwm",pwm,100,"#1e8a5a",false);
+  byId("result").textContent=`Peak speed: ${peak.toFixed(2)} · Overshoot: ${Math.max(0,(peak-40)/40*100).toFixed(1)}%`;
+  byId("sketch").textContent=arduino(p);
+  byId("copied").textContent="";
+}
+document.addEventListener("input",update);
+byId("copy").onclick=async()=>{
+  try {await navigator.clipboard.writeText(byId("sketch").textContent); byId("copied").textContent="Copied.";}
+  catch {const range=document.createRange(); range.selectNodeContents(byId("sketch")); const selection=getSelection(); selection.removeAllRanges(); selection.addRange(range); byId("copied").textContent="Code selected. Press Ctrl+C or ⌘C.";}
+};
+update();
+</script></body></html>
