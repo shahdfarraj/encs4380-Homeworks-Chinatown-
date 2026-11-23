@@ -163,6 +163,7 @@ The closed loop is simulated step by step in time with RK4, so it works for ever
 |---|---|---|
 | Shahd Farraj | P1: PID playground | Done |
 | Shahd Farraj | P2: A slow sensor in the loop | Done |
+| Laila Bahjat | P3: Digital PID | Done |
 
 ## P1: PID playground
 Live page: [P1](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p1.html)
@@ -278,7 +279,6 @@ With Kp = 9 and Ki = 20 the loop is marginal at tau_s = 1 s and unstable above i
 We used Claude and ChatGPT to help write the code in both homeworks.
 - Homework 1: to help write the code for the four modules.
 - Homework 2: to help write the P1 and P2 pages and the closed-loop simulation code, and to explain PID concepts.
-
 We tested everything and can explain every line.
 
 ## Related issues
