@@ -203,7 +203,12 @@ You can:
 With Kp = 9 and Ki = 20 the loop is marginal at tau_s = 1 s and unstable above it (Routh test on s^3 + 2s^2 + 10s + 20).
 
 ---
+## P3: Digital PID
 
+Live page: [Digital PID simulator](https://shahdfarraj.github.io/encs4380-Homeworks-Chinatown-/control/p3.html)
+
+I tested how the sampling time affects the speed of a simulated motor. The PWM graph has a staircase shape because the controller holds each command until the next sample. With a target speed of 40, increasing the sampling time from 0.05 s to 0.50 s raised the overshoot from 0% to 54.8%. In a separate test, enabling anti-windup reduced the peak speed from 48.78 to 41.14. The page also lets users copy Arduino code for their selected PID gains, sampling time, and anti-windup setting.
+---
 ## Screenshots
 
 **Module 1: First-order time response**
