@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>P4 · Tuning challenge · ENCS4380 HW2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f2f5f8;--panel:#fff;--ink:#12263a;--mute:#5b6b7a;--rule:#cfd9e2;--y:#1f5fbf;--r:#c77700;--u:#1e8a5a;--s:#7a3fb0;--bad:#b3261e;--ok:#1e8a5a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+output,.val{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace}
+header{padding:18px 20px 14px;border-bottom:2px solid var(--ink);background:var(--panel)}
+header a{color:var(--y);font-size:13px}
+header h1{margin:2px 0 0;font-size:22px;font-weight:600}
+header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+main{display:grid;grid-template-columns:330px 1fr;gap:14px;padding:14px;max-width:1200px;margin:auto}
+main>*{min-width:0}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:12px 14px;margin-bottom:14px}
+h2{margin:0 0 8px;font-size:14px;font-weight:600;padding-bottom:4px;border-bottom:1px solid var(--rule)}
+.row{display:grid;grid-template-columns:70px 1fr 52px;align-items:center;gap:8px;margin:5px 0;font-size:14px}
+.row output{text-align:right;font-size:13px}
+input[type=range]{width:100%;accent-color:var(--y)}
+button{font:inherit;padding:5px 10px;border:1px solid var(--ink);border-radius:3px;background:var(--ink);color:#fff;cursor:pointer}
+button.alt{background:#fff;color:var(--ink)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:2px solid var(--y);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+canvas{width:100%;height:250px;display:block;border:1px solid var(--rule);background:#fff}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12.5px;color:var(--mute);margin:4px 0 0}
+.legend i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.note{font-size:13px;color:var(--mute);margin:8px 0 0}
+.pass{color:var(--ok);font-weight:600}.fail{color:var(--bad);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--rule)}
+th{color:var(--mute);font-weight:500;font-size:13px}
+td.num{font-family:"IBM Plex Mono",monospace;font-size:13px}
+.chk li{margin:4px 0}
+#msg{margin:8px 0 0;min-height:22px}
+</style></head>
+<body>
+<header><a href="../index.html">← Dynamics Toolkit</a>
+<h1>P4 · Tuning challenge</h1>
+<p>ENCS4380 Interfacing Techniques · Homework 2 · A hidden random plant, a spec, and your PID gains · Owner: <em>write your name here</em></p>
+</header>
+<main>
+<div>
+<section><h2>Your controller</h2><div id="g-pid"></div>
+<p class="note">Setpoint step 0 → 1. PWM limit 0–100, anti-windup on, window 10 s. The plot updates live; points are awarded when you press Submit.</p>
+<div class="btns"><button id="sub">Submit design</button><button class="alt" id="nw">New plant &amp; spec</button><button class="alt" id="hint">Show hint</button></div>
+<p id="msg" aria-live="polite"></p>
+</section>
+<section><h2>Spec to meet</h2>
+<table><thead><tr><th>Requirement</th><th>Limit</th><th>Yours</th><th></th></tr></thead><tbody id="spec"></tbody></table>
+<p class="note" id="score"></p>
+</section>
+<section><h2>Hidden plant</h2>
+<p class="note" id="plantinfo">Hidden until you submit. Use the open-loop test to estimate K and τ, as in Homework 1 Module 4.</p>
+</section>
+</div>
+<div>
+<section><h2>Closed-loop output</h2>
+<canvas id="c1"></canvas>
+<div class="legend"><span><i style="border-color:var(--y)"></i>y output</span><span><i style="border-color:var(--r);border-top-style:dashed"></i>setpoint r</span><span><i style="border-color:var(--bad);border-top-style:dotted"></i>overshoot limit</span><span><i style="border-color:var(--s);border-top-style:dashed"></i>settling-time limit</span></div>
+<h2 style="margin-top:14px">Control signal u</h2>
+<canvas id="c2" style="height:170px"></canvas>
+<div class="legend"><span><i style="border-color:var(--u)"></i>u applied</span><span><i style="border-color:#9aa8b5;border-top-style:dotted"></i>u requested by PID</span><span><i style="border-color:var(--bad);border-top-style:dashed"></i>limits</span></div>
+</section>
+<section><h2>Open-loop test (u = 1 from t = 0, no controller)</h2>
+<canvas id="c3" style="height:190px"></canvas>
+<p class="note">The final value is K. For a first-order plant, the time to reach 63.2 % of it is τ. A second-order plant will ring if its ζ is low.</p>
+</section>
+<section><h2>Validation checks (K = 1, τ = 1)</h2>
+<ul class="chk" id="val" style="padding-left:18px;margin:0"></ul>
+<div class="btns"><button class="alt" id="rerun">Run checks again</button></div>
+</section>
+</div>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const CFG=[['kp','Kp',0,30,.1,1],['ki','Ki',0,30,.1,0],['kd','Kd',0,5,.05,0]];
+$('#g-pid').innerHTML=CFG.map(c=>`<div class="row"><label for="${c[0]}">${c[1]}</label><input type="range" id="${c[0]}" min="${c[2]}" max="${c[3]}" step="${c[4]}" value="${c[5]}"><output id="o${c[0]}"></output></div>`).join('');
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const UMAX=100,UMIN=0,TW=10;
+
+/* Plant + PID, RK4 at dt = 1 ms. open=true applies u = 1 with no controller. */
+function sim(pl,g,T,open){
+ const dt=.001,n=Math.round(T/dt),Tf=.01,r=1;
+ const f=(x,u)=>pl.type==1?[(pl.K*u-x[0])/pl.tau,0]:[x[1],pl.wn*pl.wn*(pl.K*u-x[0])-2*pl.z*pl.wn*x[1]];
+ const y=new Float32Array(n),u=new Float32Array(n),ur=new Float32Array(n);
+ let x=[0,0],I=0,d=0,ep=0,len=n,bad=false;
+ for(let i=0;i<n;i++){
+  const e=r-x[0];let raw,us;
+  if(open){raw=us=1}
+  else{
+   d=(Tf*d+g.kd*(e-ep))/(Tf+dt);
+   const In=I+e*dt;raw=g.kp*e+g.ki*In+d;us=Math.min(UMAX,Math.max(UMIN,raw));
+   if(!(raw!==us&&e*(raw-us)>0))I=In;
+  }
+  y[i]=x[0];u[i]=us;ur[i]=raw;
+  const k1=f(x,us),k2=f([x[0]+dt/2*k1[0],x[1]+dt/2*k1[1]],us),k3=f([x[0]+dt/2*k2[0],x[1]+dt/2*k2[1]],us),k4=f([x[0]+dt*k3[0],x[1]+dt*k3[1]],us);
+  x=[x[0]+dt/6*(k1[0]+2*k2[0]+2*k3[0]+k4[0]),x[1]+dt/6*(k1[1]+2*k2[1]+2*k3[1]+k4[1])];
+  ep=e;
+  if(!isFinite(x[0])||Math.abs(x[0])>1e3){len=i+1;bad=true;break}
+ }
+ return{y:y.subarray(0,len),u:u.subarray(0,len),ur:ur.subarray(0,len),len,dt,bad};
+}
+/* Metrics against the setpoint r = 1 */
+function meas(s){
+ const {y,ur,len:n,dt}=s;let ym=-1e9,up=-1e9;
+ for(let i=0;i<n;i++){ym=Math.max(ym,y[i]);up=Math.max(up,ur[i])}
+ let k=n-1;while(k>=0&&Math.abs(y[k]-1)<=.02)k--;
+ return{bad:s.bad,os:Math.max(0,(ym-1)*100),ess:Math.abs(1-y[n-1])*100,settle:(!s.bad&&k<n*.95)?(k+1)*dt:null,up};
+}
+
+let plant,spec,pts=0,rounds=0,done=false;
+function newRound(){
+ plant=Math.random()<.5?{type:1,K:rnd(.5,3),tau:rnd(.3,3)}:{type:2,K:rnd(.5,3),wn:rnd(2,8),z:rnd(.3,1)};
+ const ol=sim(plant,null,20,true).y,fv=ol[ol.length-1];
+ let k=ol.length-1;while(k>=0&&Math.abs(ol[k]-fv)<=.02*fv)k--;
+ const tol=(k+1)*.001;
+ spec={os:[5,10,15][Math.floor(Math.random()*3)],settle:Math.round(Math.min(5,Math.max(.8,.5*tol))*10)/10,ess:1,u:UMAX};
+ done=false;$('#sub').disabled=false;$('#msg').textContent='';
+ $('#plantinfo').textContent='Hidden until you submit. Use the open-loop test to estimate K and τ, as in Homework 1 Module 4.';
+ $('#score').textContent=rounds?`Session score: ${pts} / ${rounds*10} points (${rounds} round${rounds>1?'s':''})`:'Session score: 0 / 0 points';
+ run();
+}
+const gains=()=>({kp:+$('#kp').value,ki:+$('#ki').value,kd:+$('#kd').value});
+function nice(a,b,n){const s=(b-a)/n,p=Math.pow(10,Math.floor(Math.log10(s))),q=s/p,st=(q<1.5?1:q<3.5?2:q<7.5?5:10)*p,o=[];for(let v=Math.ceil(a/st)*st;v<=b+1e-9;v+=st)o.push(+v.toFixed(10));return o}
+function plot(cv,T,ymin,ymax,series,hl){
+ const dpr=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
+ const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+ const L=46,R=10,Tp=10,B=26,pw=W-L-R,ph=H-Tp-B,X=t=>L+t/T*pw,Y=v=>Tp+ph-(v-ymin)/(ymax-ymin)*ph;
+ g.font='11px "IBM Plex Mono",monospace';g.fillStyle='#5b6b7a';g.strokeStyle='#e3eaf0';g.lineWidth=1;
+ nice(0,T,6).forEach(t=>{g.beginPath();g.moveTo(X(t),Tp);g.lineTo(X(t),Tp+ph);g.stroke();g.textAlign='center';g.fillText(t,X(t),H-9)});
+ nice(ymin,ymax,5).forEach(v=>{g.beginPath();g.moveTo(L,Y(v));g.lineTo(L+pw,Y(v));g.stroke();g.textAlign='right';g.fillText(+v.toFixed(2),L-5,Y(v)+4)});
+ g.textAlign='right';g.fillText('t (s)',W-R,H-9);
+ g.strokeStyle='#12263a';g.strokeRect(L,Tp,pw,ph);
+ g.save();g.beginPath();g.rect(L,Tp,pw,ph);g.clip();
+ hl.forEach(h=>{g.strokeStyle=h.c;g.lineWidth=1.5;g.setLineDash(h.d||[]);g.beginPath();
+  if(h.t!=null){g.moveTo(X(h.t),Tp);g.lineTo(X(h.t),Tp+ph)}else{g.moveTo(L,Y(h.v));g.lineTo(L+pw,Y(h.v))}g.stroke()});
+ series.forEach(s=>{g.strokeStyle=s.c;g.lineWidth=s.w||2;g.setLineDash(s.d||[]);g.beginPath();const st=Math.max(1,Math.floor(s.a.length/(pw*2)));
+  for(let i=0;i<s.a.length;i+=st){const px=X(i*.001),py=Y(s.a[i]);i?g.lineTo(px,py):g.moveTo(px,py)}g.stroke()});
+ g.restore();
+}
+function evalSpec(m){
+ return[
+  ['Overshoot ≤ '+spec.os+' %',m.bad?'unstable':m.os.toFixed(1)+' %',!m.bad&&m.os<=spec.os],
+  ['Settling time (2 %) ≤ '+spec.settle+' s',m.settle==null?'not settled':m.settle.toFixed(2)+' s',m.settle!=null&&m.settle<=spec.settle],
+  ['Steady-state error ≤ '+spec.ess+' %',m.bad?'unstable':m.ess.toFixed(2)+' %',!m.bad&&m.ess<=spec.ess],
+  ['Requested u ≤ '+spec.u+' (PWM)',m.bad?'—':m.up.toFixed(0),!m.bad&&m.up<=spec.u]];
+}
+let last=[];
+function run(){
+ const g=gains();CFG.forEach(c=>$('#o'+c[0]).textContent=(+$('#'+c[0]).value).toFixed(c[4]<.1?2:1));
+ const s=sim(plant,g,TW),m=meas(s);
+ const ys=[...s.y],ym=Math.min(Math.max(...ys),3),yn=Math.max(Math.min(...ys),-1);
+ plot($('#c1'),TW,Math.min(0,yn)-.05,Math.max(1.3,ym*1.05),[{a:s.y,c:'#1f5fbf'}],
+  [{v:1,c:'#c77700',d:[6,4]},{v:1+spec.os/100,c:'#b3261e',d:[2,3]},{t:spec.settle,c:'#7a3fb0',d:[6,4]}]);
+ plot($('#c2'),TW,UMIN-8,UMAX+8,[{a:s.ur,c:'#9aa8b5',w:1,d:[2,3]},{a:s.u,c:'#1e8a5a'}],[{v:UMAX,c:'#b3261e',d:[6,4]},{v:UMIN,c:'#b3261e',d:[6,4]}]);
+ const o=sim(plant,null,TW,true),fv=o.y[o.y.length-1];
+ plot($('#c3'),TW,-.05*fv,1.2*Math.max(fv,...o.y),[{a:o.y,c:'#1f5fbf'}],[{v:fv,c:'#c77700',d:[6,4]}]);
+ last=evalSpec(m);
+ $('#spec').innerHTML=last.map(r=>`<tr><td>${r[0]}</td><td></td><td class="num">${r[1]}</td><td class="${r[2]?'pass':'fail'}">${r[2]?'PASS':'FAIL'}</td></tr>`).join('');
+}
+$('#sub').onclick=()=>{
+ if(done)return;done=true;rounds++;
+ const n=last.filter(r=>r[2]).length,p=n*2.5;pts+=p;$('#sub').disabled=true;
+ const pl=plant.type==1?`first order, K = ${plant.K.toFixed(2)}, τ = ${plant.tau.toFixed(2)} s`:`second order, K = ${plant.K.toFixed(2)}, ωn = ${plant.wn.toFixed(2)} rad/s, ζ = ${plant.z.toFixed(2)}`;
+ $('#plantinfo').textContent='The plant was '+pl+'.';
+ $('#msg').innerHTML=n==4?'<span class="pass">All 4 parts pass: 10 points.</span>':`<span class="fail">${n} of 4 parts pass: ${p} points.</span> Press New plant &amp; spec to try another.`;
+ $('#score').textContent=`Session score: ${pts} / ${rounds*10} points (${rounds} round${rounds>1?'s':''})`;
+};
+$('#nw').onclick=newRound;
+$('#hint').onclick=()=>{$('#msg').textContent='Read K and τ from the open-loop plot. Start with P only, add Ki until the steady-state error vanishes, then add a small Kd if the overshoot is too large. A big Kd makes the requested u spike at t = 0.'};
+
+function validate(){
+ const pl={type:1,K:1,tau:1},L=[],add=(ok,t)=>L.push(`<li><span class="${ok?'pass':'fail'}">${ok?'PASS':'FAIL'}</span> ${t}</li>`);
+ let m=meas(sim(pl,{kp:9,ki:0,kd:0},3));
+ add(Math.abs(m.ess-10)<.3,`P only, Kp=9: error = ${m.ess.toFixed(2)} % (expected 10)`);
+ m=meas(sim(pl,{kp:2,ki:3,kd:0},20));
+ add(m.ess<.1,`PI, Kp=2, Ki=3: error = ${m.ess.toFixed(4)} % (expected 0)`);
+ m=meas(sim(pl,{kp:1,ki:1,kd:0},10));
+ add(m.os<1&&m.settle!=null,`PI, Kp=1, Ki=1 (ζ = 1): overshoot = ${m.os.toFixed(2)} % (expected 0), settles in ${m.settle==null?'—':m.settle.toFixed(2)} s`);
+ $('#val').innerHTML=L.join('');
+}
+document.querySelectorAll('input[type=range]').forEach(e=>e.addEventListener('input',run));
+$('#rerun').onclick=validate;addEventListener('resize',run);
+newRound();validate();
+</script>
+</body></html>
