@@ -151,6 +151,8 @@ Pull Request: #5
 **Control section:**
 - [P1: PID playground](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p1.html)
 - [P2: A slow sensor in the loop](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p2.html)
+- [P3: Digital PID](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p3.html)
+- [P4: Tuning challenge](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p4.html)
 
 ## What is this?
 Homework 1 showed how slow a system is. Homework 2 shows how to make it faster and more accurate with feedback.
@@ -164,6 +166,7 @@ The closed loop is simulated step by step in time with RK4, so it works for ever
 | Shahd Farraj | P1: PID playground | Done |
 | Shahd Farraj | P2: A slow sensor in the loop | Done |
 | Laila Bahjat | P3: Digital PID | Done |
+| Batoul Abu Samhadana | P4: Tuning challenge | Done |
 
 ## P1: PID playground
 Live page: [P1](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p1.html)
@@ -273,6 +276,25 @@ With Kp = 9 and Ki = 20 the loop is marginal at tau_s = 1 s and unstable above i
 
 <img width="506" height="572" alt="image" src="https://github.com/user-attachments/assets/a98e0fee-20d0-4aa9-b818-1232dbd29e24" />
 
+
+## P4: Tuning challenge
+Live page: [P4](https://shahdfarraj.github.io/encs4380-dynamics--Chinatown-/control/p4.html)
+A hidden random plant (first or second order, as in Homework 1 Module 4) and a random spec. The user tunes Kp, Ki and Kd and sees the result live.
+
+You can:
+- Estimate K and τ from an open-loop step test, then tune the gains.
+- See the output with the overshoot and settling-time limits drawn on it.
+- See the control signal u against the 0–100 PWM limit.
+- Get PASS or FAIL on each of four spec parts: overshoot, settling time, steady-state error and peak requested u.
+- Press Submit to score 2.5 points per passing part (10 per round), reveal the true plant, and start a new round.
+
+### Validation checks (P4)
+For the plant K = 1 and tau = 1 s:
+- P only, Kp = 9: steady-state error 10 %.
+- PI with Kp = 2 and Ki = 3: zero steady-state error.
+- PI with Kp = 1 and Ki = 1: no overshoot.
+
+Result: PASS (all three)
 
 ## Use of AI tools
 
