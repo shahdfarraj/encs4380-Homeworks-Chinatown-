@@ -300,6 +300,10 @@ For the plant K = 1 and tau = 1 s:
 - PI with Kp = 1 and Ki = 1: no overshoot.
 
 Result: PASS (all three)
+### Screenshots
+<img width="1347" height="730" alt="image" src="https://github.com/user-attachments/assets/9f9e62e7-689a-4297-8d11-d781154cfa5b" />
+<img width="1352" height="557" alt="image" src="https://github.com/user-attachments/assets/548c1f4a-35fb-467a-a3ba-adad8524b4fb" />
+
 
 ## Use of AI tools
 
