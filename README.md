@@ -163,7 +163,7 @@ The closed loop is simulated step by step in time with RK4, so it works for ever
 
 | Member | Module | Status |
 |---|---|---|
-| Shahd Farraj | P1: PID playground | Done |
+| Leen Zuhud | P1: PID playground | Done |
 | Shahd Farraj | P2: A slow sensor in the loop | Done |
 | Laila Bahjat | P3: Digital PID | Done |
 | Batoul Abu Samhadana | P4: Tuning challenge | Done |
